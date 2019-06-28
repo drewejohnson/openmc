@@ -96,7 +96,17 @@ read_function(hid_t group, const char* name, xt::xarray<double>* y_ptr)
       func = std::make_unique<Tabulated1D>(dset, *y_ptr);
     }
   } else if (func_type == "Polynomial") {
-    func = std::make_unique<Polynomial>(dset);
+    if (nullptr == y_ptr) {
+      func = std::make_unique<Polynomial>(dset);
+    } else {
+      // Cast coefficients to double
+      std::vector<double> coeffs(y_ptr->size());
+      int i=0;
+      for (double c: *y_ptr) {
+        coeffs[i++] = c;
+      }
+      func = std::make_unique<Polynomial>(coeffs);
+    }
   } else if (func_type == "CoherentElastic") {
     func = std::make_unique<CoherentElasticXS>(dset);
   } else if (func_type == "IncoherentElastic") {
