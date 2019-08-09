@@ -11,8 +11,6 @@ import pytest
 
 from tests import cdtemp
 
-_ENDF_DATA = Path(os.environ['OPENMC_ENDF_DATA'])
-
 _TEST_CHAIN = """\
 <depletion_chain>
   <nuclide name="A" half_life="23652.0" decay_modes="2" decay_energy="0.0" reactions="1">
@@ -64,11 +62,11 @@ def test_len():
     assert len(chain) == 3
 
 
-def test_from_endf():
+def test_from_endf(endf_data_path):
     """Test depletion chain building from ENDF files"""
-    decay_data = (_ENDF_DATA / 'decay').glob('*.endf')
-    fpy_data = (_ENDF_DATA / 'nfy').glob('*.endf')
-    neutron_data = (_ENDF_DATA / 'neutrons').glob('*.endf')
+    decay_data = (endf_data_path / "decay").glob('*.endf')
+    fpy_data = (endf_data_path / "nfy").glob('*.endf')
+    neutron_data = (endf_data_path / "neutrons").glob('*.endf')
     chain = Chain.from_endf(decay_data, fpy_data, neutron_data)
 
     assert len(chain) == len(chain.nuclides) == len(chain.nuclide_dict) == 3820

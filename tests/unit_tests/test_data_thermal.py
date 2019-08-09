@@ -10,9 +10,6 @@ import pytest
 import openmc.data
 
 
-_ENDF_DATA = os.environ['OPENMC_ENDF_DATA']
-
-
 @pytest.fixture(scope='module')
 def h2o():
     """H in H2O thermal scattering data."""
@@ -30,26 +27,26 @@ def graphite():
 
 
 @pytest.fixture(scope='module')
-def h2o_njoy():
+def h2o_njoy(endf_data_path, needs_njoy):
     """H in H2O generated using NJOY."""
-    path_h1 = os.path.join(_ENDF_DATA, 'neutrons', 'n-001_H_001.endf')
-    path_h2o = os.path.join(_ENDF_DATA, 'thermal_scatt', 'tsl-HinH2O.endf')
+    path_h1 = endf_data_path / "neutrons" / 'n-001_H_001.endf'
+    path_h2o = endf_data_path / 'thermal_scatt' / 'tsl-HinH2O.endf'
     return openmc.data.ThermalScattering.from_njoy(
         path_h1, path_h2o, temperatures=[293.6, 500.0])
 
 
 @pytest.fixture(scope='module')
-def hzrh():
+def hzrh(endf_data_path):
     """H in ZrH thermal scattering data."""
-    filename = os.path.join(_ENDF_DATA, 'thermal_scatt', 'tsl-HinZrH.endf')
+    filename = endf_data_path / 'thermal_scatt' / 'tsl-HinZrH.endf'
     return openmc.data.ThermalScattering.from_endf(filename)
 
 
 @pytest.fixture(scope='module')
-def hzrh_njoy():
+def hzrh_njoy(endf_data_path, needs_njoy):
     """H in ZrH generated using NJOY."""
-    path_h1 = os.path.join(_ENDF_DATA, 'neutrons', 'n-001_H_001.endf')
-    path_hzrh = os.path.join(_ENDF_DATA, 'thermal_scatt', 'tsl-HinZrH.endf')
+    path_h1 = endf_data_path / "neutrons" / 'n-001_H_001.endf'
+    path_hzrh = endf_data_path / 'thermal_scatt' / 'tsl-HinZrH.endf'
     with_endf_data = openmc.data.ThermalScattering.from_njoy(
         path_h1, path_hzrh, temperatures=[296.0], iwt=0
     )
@@ -60,9 +57,9 @@ def hzrh_njoy():
 
 
 @pytest.fixture(scope='module')
-def sio2():
+def sio2(endf_data_path):
     """SiO2 thermal scattering data."""
-    filename = os.path.join(_ENDF_DATA, 'thermal_scatt', 'tsl-SiO2.endf')
+    filename = endf_data_path / 'thermal_scatt' / 'tsl-SiO2.endf'
     return openmc.data.ThermalScattering.from_endf(filename)
 
 
@@ -101,9 +98,9 @@ def test_graphite_xs(graphite):
     assert elastic([1e-3, 1.0]) == pytest.approx([0.0, 0.62586153])
 
 
-def test_graphite_njoy():
-    path_c0 = os.path.join(_ENDF_DATA, 'neutrons', 'n-006_C_000.endf')
-    path_gr = os.path.join(_ENDF_DATA, 'thermal_scatt', 'tsl-graphite.endf')
+def test_graphite_njoy(endf_data_path, needs_njoy):
+    path_c0 = endf_data_path / "neutrons" / 'n-006_C_000.endf'
+    path_gr = endf_data_path / 'thermal_scatt' / 'tsl-graphite.endf'
     graphite = openmc.data.ThermalScattering.from_njoy(
         path_c0, path_gr, temperatures=[296.0])
     assert graphite.nuclides == ['C0', 'C12', 'C13']
@@ -137,8 +134,8 @@ def test_continuous_dist(h2o_njoy):
         assert isinstance(dist, openmc.data.IncoherentInelasticAE)
 
 
-def test_h2o_endf():
-    filename = os.path.join(_ENDF_DATA, 'thermal_scatt', 'tsl-HinH2O.endf')
+def test_h2o_endf(endf_data_path):
+    filename = endf_data_path / 'thermal_scatt' / 'tsl-HinH2O.endf'
     h2o = openmc.data.ThermalScattering.from_endf(filename)
     assert not h2o.elastic
     assert h2o.atomic_weight_ratio == pytest.approx(0.99917)
@@ -150,8 +147,8 @@ def test_h2o_endf():
 def test_hzrh_attributes(hzrh):
     assert hzrh.atomic_weight_ratio == pytest.approx(0.99917)
     assert hzrh.energy_max == pytest.approx(1.9734)
-    assert hzrh.temperatures == ['296K', '400K', '500K', '600K', '700K', '800K',
-                                 '1000K', '1200K']
+    assert hzrh.temperatures == [
+        '296K', '400K', '500K', '600K', '700K', '800K', '1000K', '1200K']
 
 
 def test_hzrh_elastic(hzrh):
