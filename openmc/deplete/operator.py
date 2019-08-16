@@ -29,7 +29,8 @@ from .reaction_rates import ReactionRates
 from .results_list import ResultsList
 from .helpers import (
     DirectReactionRateHelper, ChainFissionHelper, ConstantFissionYieldHelper,
-    FissionYieldCutoffHelper, AveragedFissionYieldHelper, EnergyScoreHelper)
+    FissionYieldCutoffHelper, AveragedFissionYieldHelper, EnergyScoreHelper,
+    InterpolatedFissionYieldHelper)
 
 
 def _distribute(items):
@@ -101,6 +102,7 @@ class Operator(TransportOperator):
         * "constant": :class:`~openmc.deplete.helpers.ConstantFissionYieldHelper`
         * "cutoff": :class:`~openmc.deplete.helpers.FissionYieldCutoffHelper`
         * "average": :class:`~openmc.deplete.helpers.AveragedFissionYieldHelper`
+        * "interpolate": :class:`~openmc.deplete.helpers.InterpolatedFissionYieldHelper`
 
         The documentation on these classes describe their methodology
         and differences. Default: ``"constant"``
@@ -149,6 +151,7 @@ class Operator(TransportOperator):
         "average": AveragedFissionYieldHelper,
         "constant": ConstantFissionYieldHelper,
         "cutoff": FissionYieldCutoffHelper,
+        "interpolate": InterpolatedFissionYieldHelper,
     }
 
     def __init__(self, geometry, settings, chain_file=None, prev_results=None,

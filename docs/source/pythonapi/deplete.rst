@@ -97,6 +97,7 @@ total system energy.
    helpers.DirectReactionRateHelper
    helpers.EnergyScoreHelper
    helpers.FissionYieldCutoffHelper
+   helpers.InterpolatedFissionYieldHelper
 
 The following classes are abstract classes that can be used to extend the
 :mod:`openmc.deplete` capabilities:

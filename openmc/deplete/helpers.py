@@ -7,7 +7,7 @@ from numbers import Real
 import bisect
 from collections import defaultdict
 
-from numpy import dot, zeros, newaxis
+from numpy import dot, zeros, newaxis, empty, array
 
 from . import comm
 from openmc.checkvalue import check_type, check_greater_than
@@ -20,7 +20,7 @@ from .abc import (
 __all__ = (
     "DirectReactionRateHelper", "ChainFissionHelper",
     "ConstantFissionYieldHelper", "FissionYieldCutoffHelper",
-    "AveragedFissionYieldHelper")
+    "AveragedFissionYieldHelper", "InterpolatedFissionYieldHelper")
 
 # -------------------------------------
 # Helpers for generating reaction rates
@@ -678,3 +678,236 @@ class AveragedFissionYieldHelper(TalliedFissionYieldHelper):
         AveragedFissionYieldHelper
         """
         return cls(operator.chain.nuclides)
+
+
+class InterpolatedFissionYieldHelper(TalliedFissionYieldHelper):
+    r"""Class that interpolates a collection of fission yields
+
+    Treats the fission yields for each nuclide as piece-wise
+    functions of energy. Given sets of fission yields provided
+    at energies :math:`E_0<E_1<E_2<\cdots<E_G`,
+
+    .. math::
+
+        \gamma(E) =
+            \begin{cases}
+                &\gamma_0\quad\text{for } E\leq E_0\\
+                &Interp(E)\quad\text{for } E_0 < E < E_G \\
+                &\gamma_G\quad\text{for } E\geq E_G\\
+            \end{cases}.
+
+    :math:`Interp(E)` linearly interpolates between fission yields
+    :math:`\gamma_j` and :math:`\gamma_{j+1}` provided
+    at bounding energies :math:`E_j<E<E_{j+1}`, as
+
+    .. math::
+
+        \gamma(E) = \gamma_j + \frac{E-E_j}{E_{j+1}-E_j}
+        \left[\gamma_{j+1} - \gamma_j\right]
+
+    for :math:`E_j < E < E_{j+1}`.  The effective fission yield for a
+    nuclide with multiple sets of fission yields is the average of
+    the fission yields, weighted by the fission rate
+
+    .. math::
+
+        \bar{\gamma} = \frac{
+            \int_0^\infty\gamma(E)\sigma_f(E)\phi(E)dE
+        }{
+            \int_0^\infty\sigma_f(E)\phi(E)dE
+        }.
+
+    Rearranging the previous expression and using the interpolated-expression,
+    one obtains
+
+    .. math::
+
+        \bar{\gamma}\int_0^\infty\sigma_f(E)\phi(E)dE =
+        \gamma_0\int_0^{E_0}\sigma_f(E)\phi(E)dE
+        + \gamma_G\int_{E_G}^\infty\sigma_f(E)\phi(E)dE
+        + \sum_{g=0}^{G-1}\int_{E_g}^{E_{g+1}}\gamma(E)\sigma_f(E)\phi(E)dE
+
+    with
+
+    .. math::
+
+        \int_{E_g}^{E_{g+1}}\gamma(E)\sigma_f(E)\phi(E)dE =
+        \frac{\gamma_gE_{g+1}-\gamma_{g+1}E_g}{\Delta_g}\bar{\sigma_f\phi}_g
+        + \frac{\gamma_{g+1}-\gamma_g}{\Delta_g}\bar{E\sigma_f\phi}_g
+
+    using the definitions :math:`\Delta_g\equiv E_{g+1}-E_g`,
+
+    .. math::
+
+        \bar{\sigma_f\phi}_g\equiv\int_{E_g}^{E_{g+1}}\sigma_f(E)\phi(E)dE
+
+    and similar for :math:`\bar{E\sigma_f\phi}_g`.
+
+    """
+
+    def __init__(self, chain_nuclides, n_bmats):
+        super().__init__(chain_nuclides)
+        self.n_bmats = n_bmats
+        # determine common energy grid for nuclides with multiple yields
+        inner_energies = set()
+        for nuc in self._chain_nuclides.values():
+            inner_energies |= set(nuc.yield_data)
+
+        # Energies are tallied with these as energy bins, as well as
+        # above the highest energy and below the lowest energy
+        self._inner_energies = array(sorted(inner_energies))
+        # Dict with energy -> index
+        self._energy_map = dict(zip(
+            self._inner_energies, range(len(self._inner_energies))))
+        self._weighted_tally = None
+
+    def generate_tallies(self, materials, mat_indexes):
+        r"""Construct tallies necessary to linearly interpolate yield data
+
+        Produced two tallies: a fission rate tally and an energy-weighted
+        fission rate tally. These will make up the numerator and denominator
+        needed for :math:`\bar\gamma`
+
+        Parameters
+        ----------
+        materials : iterable of :class:`openmc.capi.Material`
+            Materials to be used in :class:`openmc.capi.MaterialFilter`
+        mat_indexes : iterable of int
+            Indices of tallied materials that will have their fission
+            yields computed by this helper. Necessary as the
+            :class:`openmc.deplete.Operator` that uses this helper
+            may only burn a subset of all materials when running
+            in parallel mode.
+        """
+        super().generate_tallies(materials, mat_indexes)
+        fission_tally = self._fission_rate_tally
+
+        # Set up energy grids
+        bin_filter = EnergyFilter()
+        bin_filter.bins = [0] + list(self._inner_energies) + [self._upper_energy]
+        fission_tally.filters.append(bin_filter)
+
+        self._weighted_tally = weighted_tally = Tally()
+        weighted_tally.filters = fission_tally.filters.copy()
+        weighted_tally.scores = ['fission']
+
+        # Make energy function filter for interpolation region
+        func_filter = EnergyFunctionFilter()
+        func_filter.set_data(
+            (self._inner_energies[0], self._inner_energies[-1]),
+            (self._inner_energies[0], self._inner_energies[-1]))
+        weighted_tally.filters.append(func_filter)
+
+    def unpack(self):
+        """Compute effective fission yield coefficients using tally data"""
+        energies = self._inner_energies
+        n_yields = len(self._inner_energies)
+        n_nucs = len(self._tally_nucs)
+        # Reshape results into (material, energy, nuclide)
+        fission_results = self._fission_rate_tally.results[..., 1].reshape(
+            self.n_bmats, n_yields + 1, n_nucs)[self._local_indexes]
+        weighted_results = self._weighted_tally.results[..., 1].reshape(
+            self.n_bmats, n_yields - 1, n_nucs)[self._local_indexes]
+
+        # set up results matrix
+        self.results = empty((len(self._local_indexes), n_yields, n_nucs))
+
+        # compute coefficients for each yield group
+        # determined by expanding full expression for effective yields
+
+        self.results[:, 0] = (fission_results[:, 0] + (
+            energies[1] * fission_results[:, 1] - weighted_results[:, 1])
+            / (energies[1] - energies[0]))
+
+        for g in range(1, n_yields - 1):
+            self.results[:, g] = (
+                (weighted_results[:, g - 1]
+                    - energies[g - 1] * fission_results[:, g])
+                / (energies[g] - energies[g - 1])
+                + (energies[g + 1] * fission_results[:, g + 1]
+                    - weighted_results[:, g])
+                / (energies[g + 1] - energies[g]))
+
+        self.results[:, -1] = (fission_results[:, -1] + (
+            weighted_results[:, -2] - energies[-2] * fission_results[:, -2])
+            / (energies[-1] - energies[-2]))
+
+        # rescale by total fission rate in each nuclide in each reaction
+        self.results /= fission_results.sum(axis=1)[:, newaxis]
+
+    def weighted_yields(self, local_mat_index):
+        """Compute weighted fission yields for a specific material
+
+        Uses the piece-wise representation of fission yields and
+        tallied data from :meth:`generate_tallies` to produce
+        effective fission yields.
+
+        Parameters
+        ----------
+        local_mat_index : int
+            Index of material of interest in ``materials`` argument to
+            :meth:`generate_tallies`
+
+        Returns
+        -------
+        fission_yields : dict
+            Fission yields in the form ``{parent: {product: yield}}``
+            for material ``local_mat_index``
+        """
+        results = self.results[local_mat_index]
+        out = {}
+
+        for nuc_x, nuc in enumerate(self._tally_nucs):
+            coeffs = results[:, nuc_x]
+            ene = nuc.yield_energies[0]
+            ene_ix = self._energy_map[ene]
+            out[nuc.name] = nuc.yield_data[ene] * coeffs[:ene_ix + 1].sum()
+            for ene in nuc.yield_energies[1:]:
+                prev_ix = ene_ix + 1
+                ene_ix = self._energy_map[ene]
+                out[nuc.name] += (
+                    nuc.yield_data[ene] * coeffs[prev_ix:ene_ix + 1].sum())
+
+        out.update(self.constant_yields)
+        return out
+
+    def update_tally_nuclides(self, nuclides):
+        """Tally nuclides with non-zero density and multiple yields
+
+        Must be run after :meth:`generate_tallies`.
+
+        Parameters
+        ----------
+        nuclides : iterable of str
+            Potential nuclides to be tallied, such as those with
+            non-zero density at this stage.
+
+        Returns
+        -------
+        nuclides : tuple of str
+            Union of input nuclides and those that have multiple sets
+            of yield data.  Sorted by nuclide name
+
+        Raises
+        ------
+        AttributeError
+            If tallies not generated
+        """
+        tally_nucs = super().update_tally_nuclides(nuclides)
+        self._weighted_tally.nuclides = tally_nucs
+        return tally_nucs
+
+    @classmethod
+    def from_operator(cls, operator):
+        """Return a new InterpolatedFissionYieldHelper using Operator data
+
+        Parameters
+        ----------
+        operator : openmc.deplete.Operator
+            Operator with depletion chain and burnable materials
+
+        Returns
+        -------
+        InterpolatedFissionYieldHelper
+        """
+        return cls(operator.chain.nuclides, len(operator.burnable_mats))
