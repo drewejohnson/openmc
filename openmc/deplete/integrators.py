@@ -65,6 +65,17 @@ class PredictorIntegrator(Integrator):
         :attr:`solver`.
 
         .. versionadded:: 0.12
+    with_multiprocessing : bool, optional
+        Flag to enable or disable the use of :mod:`multiprocessing` when
+        solving the Bateman equations for each material. Default is
+        ``True``, meaning materials will be depleted across all
+        processing units. However, communication may be limited on some
+        computing environments, depending on hardware and network
+        configuration, and MPI restrictions. Deactivating this setting
+        will avoid these issues, but will take longer as not all processing
+        units are used when solving the Bateman equations
+
+        .. versionadded:: 0.12
 
     Attributes
     ----------
@@ -182,6 +193,17 @@ class CECMIntegrator(Integrator):
 
         If a function or other callable, must adhere to the requirements in
         :attr:`solver`.
+
+        .. versionadded:: 0.12
+    with_multiprocessing : bool, optional
+        Flag to enable or disable the use of :mod:`multiprocessing` when
+        solving the Bateman equations for each material. Default is
+        ``True``, meaning materials will be depleted across all
+        processing units. However, communication may be limited on some
+        computing environments, depending on hardware and network
+        configuration, and MPI restrictions. Deactivating this setting
+        will avoid these issues, but will take longer as not all processing
+        units are used when solving the Bateman equations
 
         .. versionadded:: 0.12
 
@@ -309,6 +331,17 @@ class CF4Integrator(Integrator):
 
         If a function or other callable, must adhere to the requirements in
         :attr:`solver`.
+
+        .. versionadded:: 0.12
+    with_multiprocessing : bool, optional
+        Flag to enable or disable the use of :mod:`multiprocessing` when
+        solving the Bateman equations for each material. Default is
+        ``True``, meaning materials will be depleted across all
+        processing units. However, communication may be limited on some
+        computing environments, depending on hardware and network
+        configuration, and MPI restrictions. Deactivating this setting
+        will avoid these issues, but will take longer as not all processing
+        units are used when solving the Bateman equations
 
         .. versionadded:: 0.12
 
@@ -455,6 +488,17 @@ class CELIIntegrator(Integrator):
         :attr:`solver`.
 
         .. versionadded:: 0.12
+    with_multiprocessing : bool, optional
+        Flag to enable or disable the use of :mod:`multiprocessing` when
+        solving the Bateman equations for each material. Default is
+        ``True``, meaning materials will be depleted across all
+        processing units. However, communication may be limited on some
+        computing environments, depending on hardware and network
+        configuration, and MPI restrictions. Deactivating this setting
+        will avoid these issues, but will take longer as not all processing
+        units are used when solving the Bateman equations
+
+        .. versionadded:: 0.12
 
     Attributes
     ----------
@@ -584,6 +628,17 @@ class EPCRK4Integrator(Integrator):
 
         If a function or other callable, must adhere to the requirements in
         :attr:`solver`.
+
+        .. versionadded:: 0.12
+    with_multiprocessing : bool, optional
+        Flag to enable or disable the use of :mod:`multiprocessing` when
+        solving the Bateman equations for each material. Default is
+        ``True``, meaning materials will be depleted across all
+        processing units. However, communication may be limited on some
+        computing environments, depending on hardware and network
+        configuration, and MPI restrictions. Deactivating this setting
+        will avoid these issues, but will take longer as not all processing
+        units are used when solving the Bateman equations
 
         .. versionadded:: 0.12
 
@@ -729,6 +784,17 @@ class LEQIIntegrator(Integrator):
 
         If a function or other callable, must adhere to the requirements in
         :attr:`solver`.
+
+        .. versionadded:: 0.12
+    with_multiprocessing : bool, optional
+        Flag to enable or disable the use of :mod:`multiprocessing` when
+        solving the Bateman equations for each material. Default is
+        ``True``, meaning materials will be depleted across all
+        processing units. However, communication may be limited on some
+        computing environments, depending on hardware and network
+        configuration, and MPI restrictions. Deactivating this setting
+        will avoid these issues, but will take longer as not all processing
+        units are used when solving the Bateman equations
 
         .. versionadded:: 0.12
 
@@ -882,6 +948,17 @@ class SICELIIntegrator(SIIntegrator):
         :attr:`solver`.
 
         .. versionadded:: 0.12
+    with_multiprocessing : bool, optional
+        Flag to enable or disable the use of :mod:`multiprocessing` when
+        solving the Bateman equations for each material. Default is
+        ``True``, meaning materials will be depleted across all
+        processing units. However, communication may be limited on some
+        computing environments, depending on hardware and network
+        configuration, and MPI restrictions. Deactivating this setting
+        will avoid these issues, but will take longer as not all processing
+        units are used when solving the Bateman equations
+
+        .. versionadded:: 0.12
 
     Attributes
     ----------
@@ -1017,6 +1094,17 @@ class SILEQIIntegrator(SIIntegrator):
 
         If a function or other callable, must adhere to the requirements in
         :attr:`solver`.
+
+        .. versionadded:: 0.12
+    with_multiprocessing : bool, optional
+        Flag to enable or disable the use of :mod:`multiprocessing` when
+        solving the Bateman equations for each material. Default is
+        ``True``, meaning materials will be depleted across all
+        processing units. However, communication may be limited on some
+        computing environments, depending on hardware and network
+        configuration, and MPI restrictions. Deactivating this setting
+        will avoid these issues, but will take longer as not all processing
+        units are used when solving the Bateman equations
 
         .. versionadded:: 0.12
 

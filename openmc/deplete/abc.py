@@ -24,7 +24,7 @@ from openmc.checkvalue import check_type, check_greater_than
 from .results import Results
 from .chain import Chain
 from .results_list import ResultsList
-from .pool import deplete
+from .pool import DepletionDispatcher
 
 
 __all__ = [
@@ -636,6 +636,17 @@ class Integrator(ABC):
         :attr:`solver`.
 
         .. versionadded:: 0.12
+    with_multiprocessing : bool, optional
+        Flag to enable or disable the use of :mod:`multiprocessing` when
+        solving the Bateman equations for each material. Default is
+        ``True``, meaning materials will be depleted across all
+        processing units. However, communication may be limited on some
+        computing environments, depending on hardware and network
+        configuration, and MPI restrictions. Deactivating this setting
+        will avoid these issues, but will take longer as not all processing
+        units are used when solving the Bateman equations
+
+        .. versionadded:: 0.12
 
     Attributes
     ----------
@@ -667,7 +678,8 @@ class Integrator(ABC):
     """
 
     def __init__(self, operator, timesteps, power=None, power_density=None,
-                 timestep_units='s', solver="cram48"):
+                 timestep_units='s', solver="cram48",
+                 with_multiprocessing=True):
         # Check number of stages previously used
         if operator.prev_res is not None:
             res = operator.prev_res[-1]
@@ -749,6 +761,9 @@ class Integrator(ABC):
         else:
             self.solver = solver
 
+        self._dispatcher = DepletionDispatcher(with_multiprocessing)
+
+
     @property
     def solver(self):
         return self._solver
@@ -783,7 +798,7 @@ class Integrator(ABC):
 
     def _timed_deplete(self, concs, rates, dt, matrix_func=None):
         start = time.time()
-        results = deplete(
+        results = self._dispatcher.deplete(
             self._solver, self.chain, concs, rates, dt, matrix_func)
         return time.time() - start, results
 
