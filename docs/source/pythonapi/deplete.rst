@@ -139,6 +139,14 @@ with :func:`cram.CRAM48` being the default.
 .. autosummary::
    :toctree: generated
    :nosignatures:
+   :template: myclass.rst
+
+    pool.PoolShim
+    pool.DepletionDispatcher
+
+.. autosummary::
+   :toctree: generated
+   :nosignatures:
    :template: myfunction.rst
 
    cram.CRAM16
